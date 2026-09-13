@@ -6,14 +6,55 @@ branding:
   icon: "code"
   color: "yellow"
 
+inputs:
+  credential:
+    description: "username:password"
+    required: true
+    type: string
+  writable:
+    description: "Enable writable mode"
+    required: false
+    default: true
+    type: boolean
+  command:
+    description: "Command to run"
+    required: false
+    default: ""
+    type: string
+  enableUrlArg:
+    description: "Enable URL argument"
+    required: false
+    default: false
+    type: boolean
+  port:
+    description: "Port for ttyd server"
+    required: false
+    default: 7681
+    type: number
+  enableZmodem:
+    description: "Enable Zmodem support"
+    required: false
+    default: true
+    type: boolean
+  enableTrzsz:
+    description: "Enable Trzsz support"
+    required: false
+    default: true
+    type: boolean
+  enableSixel:
+    description: "Enable Sixel support"
+    required: false
+    default: true
+    type: boolean
+
 runs:
   using: composite
 
   steps:
-    - name: Setup Install dir
+    - name: Setup install dir
       shell: bash
       run: |
-        INSTALL_DIR="${{ runner.temp }}/run-ttyd-server"
+        INSTALL_DIR="${{ runner.temp }}/install_dir"
         INSTALL_DIR_FORMATTED=${INSTALL_DIR}
         if [[ "${{ runner.os }}" == "Windows" ]]; then
           INSTALL_DIR_FORMATTED=$(cygpath -w ${INSTALL_DIR})
@@ -28,66 +69,77 @@ runs:
       working-directory: ${{ env.INSTALL_DIR }}
       shell: bash
       run: |
-        CLOUDFLARED_VERSION=$(curl -s -S -H "Authorization: Bearer ${{ github.token }}" https://api.github.com/repos/cloudflare/cloudflared/releases | jq -r .[0].tag_name)
+        if ! command -v cloudflared >/dev/null 2>&1; then
+          CLOUDFLARED_VERSION=$(curl -s -S -H "Authorization: Bearer ${{ github.token }}" https://api.github.com/repos/cloudflare/cloudflared/releases | jq -r .[0].tag_name)
 
-        case $(uname -m) in
-        aarch64 | arm64) CLOUDFLARED_ARCH=arm64 ;;
-        x86_64) CLOUDFLARED_ARCH=amd64;;
-        *) echo "Unsupported architecture" && exit 1 ;;
-        esac
+          case $(uname -m) in
+          aarch64 | arm64) CLOUDFLARED_ARCH=arm64 ;;
+          x86_64) CLOUDFLARED_ARCH=amd64;;
+          *) echo "Unsupported architecture" && exit 1 ;;
+          esac
 
-        case ${{ runner.os }} in
-        Linux) curl -LkSs https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${CLOUDFLARED_ARCH} > cloudflared  && chmod +x cloudflared;;
-        Windows) curl -LkSs https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-windows-${CLOUDFLARED_ARCH}.exe > cloudflared.exe ;;
-        macOS) curl -LkSs https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-darwin-${CLOUDFLARED_ARCH}.tgz | gzip -d | tar -x ;;
-        esac
+          case ${{ runner.os }} in
+          Linux) curl -LkSs https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${CLOUDFLARED_ARCH} > cloudflared  && chmod +x cloudflared;;
+          Windows) curl -LkSs https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-windows-${CLOUDFLARED_ARCH}.exe > cloudflared.exe ;;
+          macOS) curl -LkSs https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-darwin-${CLOUDFLARED_ARCH}.tgz | gzip -d | tar -x ;;
+          esac
+        fi
+        cloudflared --version
 
     - name: Get ttyd
       working-directory: ${{ env.INSTALL_DIR }}
       shell: bash
       run: |
-        TTYD_VERSION=$(curl -s -S -H "Authorization: Bearer ${{ github.token }}" https://api.github.com/repos/zongou/ttyd/releases | jq -r .[0].tag_name)
+        if ! command -v ttyd >/dev/null 2>&1; then
+          TTYD_VERSION=$(curl -s -S -H "Authorization: Bearer ${{ github.token }}" https://api.github.com/repos/zongou/ttyd/releases | jq -r .[0].tag_name)
 
-        case ${{ runner.os }} in
-        Linux) 
-          case $(uname -m) in
-          aarch64 | arm64) TTYD_ARCH=aarch64 ;;
-          x86_64) TTYD_ARCH=x86_64;;
-          *) echo "Unsupported architecture" && exit 1 ;;
+          case ${{ runner.os }} in
+          Linux) 
+            case $(uname -m) in
+            aarch64 | arm64) TTYD_ARCH=aarch64 ;;
+            x86_64) TTYD_ARCH=x86_64;;
+            *) echo "Unsupported architecture" && exit 1 ;;
+            esac
+            curl -LkSs https://github.com/zongou/ttyd/releases/download/${TTYD_VERSION}/ttyd.${TTYD_ARCH} > ttyd  && chmod +x ttyd
+            ;;
+          Windows) 
+            case $(uname -m) in
+            aarch64 | arm64) TTYD_ARCH=aarch64 ;;
+            x86_64) TTYD_ARCH=msvc;;
+            x86) TTYD_ARCH=win32;;
+            *) echo "Unsupported architecture" && exit 1 ;;
+            esac
+            curl -LkSs https://github.com/zongou/ttyd/releases/download/${TTYD_VERSION}/ttyd.${TTYD_ARCH}.exe > ttyd.exe
+            ;;
+          # macOS)  curl -LkSs https://github.com/zongou/ttyd/releases/download/${TTYD_VERSION}/ttyd.${TTYD_ARCH} > ttyd  && chmod +x ttyd;;
           esac
-          curl -LkSs https://github.com/zongou/ttyd/releases/download/${TTYD_VERSION}/ttyd.${TTYD_ARCH} > ttyd  && chmod +x ttyd
-          ;;
-        Windows) 
-          case $(uname -m) in
-          aarch64 | arm64) TTYD_ARCH=aarch64 ;;
-          x86_64) TTYD_ARCH=msvc;;
-          x86) TTYD_ARCH=win32;;
-          *) echo "Unsupported architecture" && exit 1 ;;
-          esac
-          curl -LkSs https://github.com/zongou/ttyd/releases/download/${TTYD_VERSION}/ttyd.${TTYD_ARCH}.exe > ttyd.exe
-          ;;
-        # macOS)  curl -LkSs https://github.com/zongou/ttyd/releases/download/${TTYD_VERSION}/ttyd.${TTYD_ARCH} > ttyd  && chmod +x ttyd;;
-        esac
-
-    - name: Verify
-      shell: bash
-      run: |
+        fi
         ttyd --version
-        cloudflared --version
 
+    # When action triggered by push event, inputs object is empty, we need to set default vaule
+    # When action triggered by workflow_dispatch event, inputs object is not empty
     - name: Run ttyd server
-      env: 
+      env:
         TTYD_LOG: ${{ runner.temp }}/ttyd.log
         CLOUDFLARED_LOG: ${{ runner.temp }}/cloudflared.log
-        PORT: 7681
+        PORT: ${{ inputs.port || '7891' }}
       shell: bash
       run: |
-        nohup ttyd --port ${PORT} -t enableZmodem=true -t enableTrzsz=true -t enableSixel=true --writable bash -l > "${TTYD_LOG}" 2>&1 &
+        nohup ttyd \
+          --credential ${{ inputs.credential }} \
+          ${{ inputs.writable == 'false' && '' || '--writable' }} \
+          ${{ inputs.enableUrlArg == 'true' && '--url-arg' || '' }} \
+          --port ${PORT} \
+          --client-option enableZmodem=${{ inputs.enableZmodem == 'false' && 'false' || 'true' }} \
+          --client-option enableTrzsz=${{ inputs.enableTrzsz == 'false' && 'false' || 'true' }} \
+          --client-option enableSixel=${{ inputs.enableSixel == 'false' && 'false' || 'true' }} \
+          ${{ inputs.command || runner.os == 'Windows' && 'pwsh' || 'bash' }} > "${TTYD_LOG}" 2>&1 &
+
         nohup cloudflared tunnel --url localhost:${PORT} > "${CLOUDFLARED_LOG}" 2>&1 &
+
         while true; do
             if cat "${CLOUDFLARED_LOG}" | grep -Eo "https://.+\.trycloudflare\.com"; then
                 break
             fi
             sleep 1
         done
-

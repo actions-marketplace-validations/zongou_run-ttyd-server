@@ -1,10 +1,50 @@
 name: Test
 on:
-  # push:
-  #   paths:
-  #     - .github/workflows/test.yml
-  #     - action.yml
-  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/test.yml
+      - action.yml
+  workflow_dispatch: 
+    inputs:
+      credential:
+        description: "username:password"
+        required: false
+        type: string
+      writable:
+        description: "Enable writable mode"
+        required: false
+        default: true
+        type: boolean
+      command:
+        description: "Command to run"
+        required: false
+        default: ""
+        type: string
+      enableUrlArg:
+        description: "Enable URL argument"
+        required: false
+        default: false
+        type: boolean
+      port:
+        description: "Port for ttyd server"
+        required: false
+        default: 7681
+        type: number
+      enableZmodem:
+        description: "Enable Zmodem support"
+        required: false
+        default: true
+        type: boolean
+      enableTrzsz:
+        description: "Enable Trzsz support"
+        required: false
+        default: true
+        type: boolean
+      enableSixel:
+        description: "Enable Sixel support"
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   test:
@@ -13,7 +53,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, ubuntu-latest-arm, windows-latest]
+        runner: [ubuntu-latest, windows-latest]
     steps:
     - uses: actions/checkout@v7
+
+    - name: Print inputs
+      run: |
+        echo '${{ toJSON(inputs) }}'
+
     - uses: ./
+      with:
+        credential: ${{ inputs.credential || secrets.TTYD_CREDENTIAL }}
+        writable: ${{ inputs.writable }}
+        command: ${{ inputs.command }}
+        enableUrlArg: ${{ inputs.enableUrlArg }}
+        port: ${{ inputs.port }}
+        enableZmodem: ${{ inputs.enableZmodem }}
+        enableTrzsz:  ${{ inputs.enableTrzsz }}
+        enableSixel: ${{ inputs.enableSixel }}
+
+    - name: Keep alive
+      shell: bash
+      run: sleep 5m
