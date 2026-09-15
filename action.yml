@@ -119,9 +119,10 @@ runs:
     # When action triggered by push event, inputs object is empty, we need to set default vaule
     # When action triggered by workflow_dispatch event, inputs object is not empty
     - name: Run ttyd server
+      working-directory: ${{ env.INSTALL_DIR }}
       env:
-        TTYD_LOG: ${{ runner.temp }}/ttyd.log
-        CLOUDFLARED_LOG: ${{ runner.temp }}/cloudflared.log
+        TTYD_LOG: ttyd.log
+        CLOUDFLARED_LOG: cloudflared.log
         PORT: ${{ inputs.port || '7891' }}
       shell: bash
       run: |
@@ -143,3 +144,14 @@ runs:
             fi
             sleep 1
         done
+
+
+    - name: Print log
+      working-directory: ${{ env.INSTALL_DIR }}
+      shell: bash
+      env:
+        TTYD_LOG: ttyd.log
+        CLOUDFLARED_LOG: cloudflared.log
+      run: |
+        cat "${TTYD_LOG}"
+        cat "${CLOUDFLARED_LOG}"
