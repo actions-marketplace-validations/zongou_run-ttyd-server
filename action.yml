@@ -130,9 +130,9 @@ runs:
           ${{ inputs.writable == 'false' && '' || '--writable' }} \
           ${{ inputs.enableUrlArg == 'true' && '--url-arg' || '' }} \
           --port ${PORT} \
-          --client-option enableZmodem=${{ inputs.enableZmodem && 'true' || 'false' }} \
-          --client-option enableTrzsz=${{ inputs.enableTrzsz && 'true' || 'false' }} \
-          --client-option enableSixel=${{ inputs.enableSixel && 'true' || 'false' }} \
+          --client-option enableZmodem=${{ inputs.enableZmodem == 'false' && 'false' || 'true' }} \
+          --client-option enableTrzsz=${{ inputs.enableTrzsz == 'false' && 'false' || 'true' }} \
+          --client-option enableSixel=${{ inputs.enableSixel == 'false' && 'false' || 'true' }} \
           ${{ inputs.command || runner.os == 'Windows' && 'pwsh' || 'bash' }} > "${TTYD_LOG}" 2>&1 &
 
         nohup cloudflared tunnel --url localhost:${PORT} > "${CLOUDFLARED_LOG}" 2>&1 &
