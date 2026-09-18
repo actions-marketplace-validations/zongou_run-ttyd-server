@@ -64,6 +64,8 @@ runs:
         echo "Using install dir ${INSTALL_DIR}"
         echo ${INSTALL_DIR_FORMATTED} >> $GITHUB_PATH
         echo INSTALL_DIR=${INSTALL_DIR_FORMATTED} >> $GITHUB_ENV
+        echo TTYD_LOG=${INSTALL_DIR_FORMATTED}/ttyd.log >> $GITHUB_ENV
+        echo CLOUDFLARED_LOG=${INSTALL_DIR_FORMATTED}/cloudflared.log >> $GITHUB_ENV
 
     - name: Get cloudflared
       working-directory: ${{ env.INSTALL_DIR }}
@@ -119,10 +121,7 @@ runs:
     # When action triggered by push event, inputs object is empty, we need to set default vaule
     # When action triggered by workflow_dispatch event, inputs object is not empty
     - name: Run ttyd server
-      working-directory: ${{ env.INSTALL_DIR }}
       env:
-        TTYD_LOG: ttyd.log
-        CLOUDFLARED_LOG: cloudflared.log
         PORT: ${{ inputs.port || '7891' }}
       shell: bash
       run: |
@@ -147,11 +146,7 @@ runs:
 
 
     - name: Print log
-      working-directory: ${{ env.INSTALL_DIR }}
       shell: bash
-      env:
-        TTYD_LOG: ttyd.log
-        CLOUDFLARED_LOG: cloudflared.log
       run: |
         cat "${TTYD_LOG}"
         cat "${CLOUDFLARED_LOG}"
