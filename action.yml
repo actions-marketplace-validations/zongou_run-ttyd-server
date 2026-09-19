@@ -64,6 +64,8 @@ runs:
         echo "Using install dir ${INSTALL_DIR}"
         echo ${INSTALL_DIR_FORMATTED} >> $GITHUB_PATH
         echo INSTALL_DIR=${INSTALL_DIR_FORMATTED} >> $GITHUB_ENV
+        echo TTYD_LOG=${INSTALL_DIR_FORMATTED}/ttyd.log >> $GITHUB_ENV
+        echo CLOUDFLARED_LOG=${INSTALL_DIR_FORMATTED}/cloudflared.log >> $GITHUB_ENV
 
     - name: Get cloudflared
       working-directory: ${{ env.INSTALL_DIR }}
@@ -120,8 +122,6 @@ runs:
     # When action triggered by workflow_dispatch event, inputs object is not empty
     - name: Run ttyd server
       env:
-        TTYD_LOG: ${{ runner.temp }}/ttyd.log
-        CLOUDFLARED_LOG: ${{ runner.temp }}/cloudflared.log
         PORT: ${{ inputs.port || '7891' }}
       shell: bash
       run: |
@@ -138,8 +138,15 @@ runs:
         nohup cloudflared tunnel --url localhost:${PORT} > "${CLOUDFLARED_LOG}" 2>&1 &
 
         while true; do
-            if cat "${CLOUDFLARED_LOG}" | grep -Eo "https://.+\.trycloudflare\.com"; then
+            if cat "${CLOUDFLARED_LOG}" | grep -Eo 'https://\w+(-\w+)+\.trycloudflare\.com'; then
                 break
             fi
             sleep 1
         done
+
+
+    - name: Print log
+      shell: bash
+      run: |
+        cat "${TTYD_LOG}"
+        cat "${CLOUDFLARED_LOG}"
